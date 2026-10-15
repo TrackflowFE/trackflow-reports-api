@@ -36,3 +36,14 @@ CREATE TABLE IF NOT EXISTS reports_shipment_volume (
     received_at timestamp with time zone,
     delivered_at timestamp with time zone
 );
+CREATE TABLE IF NOT EXISTS auth_users (
+    username varchar(50) PRIMARY KEY,
+    active boolean NOT NULL
+);
+CREATE TABLE IF NOT EXISTS auth_sessions (
+    jti varchar(64) PRIMARY KEY,
+    username varchar(50) NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    last_activity_at timestamp with time zone NOT NULL,
+    closed_at timestamp with time zone
+);
