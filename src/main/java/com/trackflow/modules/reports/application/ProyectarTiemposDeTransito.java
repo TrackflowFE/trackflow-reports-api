@@ -6,7 +6,6 @@ import com.trackflow.shared.events.EnvioCreadoEvent;
 import com.trackflow.shared.events.EventoLogisticoRegistradoEvent;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -24,14 +23,14 @@ public class ProyectarTiemposDeTransito {
     }
 
     /** Si el envío ya está proyectado no se toca: la reconstrucción republica todas las altas. */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void alCrearEnvio(EnvioCreadoEvent event) {
         if (repository.findByTrackingNumber(event.trackingNumber()).isEmpty()) {
             repository.save(new ShipmentTransitView(event.trackingNumber()));
         }
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void alRegistrarEvento(EventoLogisticoRegistradoEvent event) {
         Optional<HitoDelRecorrido> hito = HitoDelRecorrido.deTipoDeEvento(event.eventType());
         if (hito.isEmpty()) {
