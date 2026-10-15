@@ -13,11 +13,14 @@ credenciales del equipo. No se debe tratar una URL estimada como desplegada.
 `render.yaml` define el servicio independiente `trackflow-reports-api`, su
 Dockerfile y health check. API 1 debe migrar primero la base Supabase hasta V22.
 
-Verificacion local: `mvnw test` y `mvnw verify`, 26 pruebas; arranque HTTP en
+Verificacion local: `mvnw test` y `mvnw verify`, 27 pruebas; arranque HTTP en
 8082 con esquema aislado de pruebas y Hibernate `validate`. Las pruebas de
-integracion verifican JSON, tres proyecciones, reentregas, rastreo/retrasos,
+integracion verifican JSON sin cabeceras de clases Java, tres proyecciones,
+rollback atomico ante error de BD, reentregas, rastreo/retrasos,
 JWT, roles, sesiones cerradas/inactivas y CORS. El broker real, PostgreSQL de
 Supabase y la prueba entre las tres APIs aun requieren el entorno del equipo.
+GitHub Actions tambien verifico Maven y construyo la imagen Docker:
+https://github.com/TrackflowFE/trackflow-reports-api/actions/runs/38679103117
 
 ## Ejecucion
 

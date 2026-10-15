@@ -17,6 +17,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -30,6 +31,7 @@ class ReportsIntegrationEventTest {
     @Autowired ShipmentVolumeViewJpaRepository volume;
     @Autowired MessageConverter converter;
     @Autowired MockMvc mvc;
+    @Autowired JdbcTemplate jdbc;
 
     private final Instant registered = Instant.now().minusSeconds(4 * 86400);
 
@@ -44,6 +46,7 @@ class ReportsIntegrationEventTest {
     void jsonEventUpdatesThreeProjectionsAndTrackingAndDelayEndpoints() throws Exception {
         var event = created();
         var message = converter.toMessage(event, new MessageProperties());
+        message.getMessageProperties().getHeaders().clear();
         message.getMessageProperties().setInferredArgumentType(EnvioCreadoEvent.class);
         listener.onShipmentCreated((EnvioCreadoEvent) converter.fromMessage(message));
         listener.onLogisticsRegistered(movement("DISPATCHED", "IN_TRANSIT", registered.plusSeconds(3600)));
@@ -87,6 +90,21 @@ class ReportsIntegrationEventTest {
         assertEquals(0, tracking.count());
         assertEquals(0, volume.count());
         assertEquals(0, transit.count());
+    }
+
+    @Test
+    void databaseFailureInOneProjectionRollsBackAllThree() {
+        jdbc.execute("alter table reports_shipment_volume add constraint test_reject_origin check (origin_city_id <> 99)");
+        try {
+            var rejected = new EnvioCreadoEvent("TF-TEST", "REGISTERED", "Sender", 99L, "Origin",
+                    "Recipient", "Address", 2L, "Destination", registered, registered);
+            assertThrows(RuntimeException.class, () -> listener.onShipmentCreated(rejected));
+            assertEquals(0, tracking.count());
+            assertEquals(0, transit.count());
+            assertEquals(0, volume.count());
+        } finally {
+            jdbc.execute("alter table reports_shipment_volume drop constraint test_reject_origin");
+        }
     }
 
     @Test
