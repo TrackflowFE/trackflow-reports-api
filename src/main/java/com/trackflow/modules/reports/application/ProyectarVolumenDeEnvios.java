@@ -4,7 +4,6 @@ import com.trackflow.modules.reports.domain.ShipmentVolumeView;
 import com.trackflow.shared.events.EnvioCreadoEvent;
 import com.trackflow.shared.events.EventoLogisticoRegistradoEvent;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -31,7 +30,7 @@ public class ProyectarVolumenDeEnvios {
      * aplicados. La fecha de registro de un envío no cambia, así que no hay nada que
      * actualizar.
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void alCrearEnvio(EnvioCreadoEvent event) {
         if (repository.findByTrackingNumber(event.trackingNumber()).isPresent()) {
             return;
@@ -44,7 +43,7 @@ public class ProyectarVolumenDeEnvios {
                 event.originCity()));
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void alRegistrarEvento(EventoLogisticoRegistradoEvent event) {
         boolean esIngreso = RECIBIDO_EN_CENTRO.equals(event.eventType());
         boolean esEntrega = ENTREGADO.equals(event.eventType());

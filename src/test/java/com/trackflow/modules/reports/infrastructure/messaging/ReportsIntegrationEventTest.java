@@ -1,0 +1,109 @@
+package com.trackflow.modules.reports.infrastructure.messaging;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import com.trackflow.modules.reports.infrastructure.ShipmentTrackingViewJpaRepository;
+import com.trackflow.modules.reports.infrastructure.ShipmentTransitViewJpaRepository;
+import com.trackflow.modules.reports.infrastructure.ShipmentVolumeViewJpaRepository;
+import com.trackflow.shared.events.EnvioCreadoEvent;
+import com.trackflow.shared.events.EventoLogisticoRegistradoEvent;
+import java.time.Instant;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.amqp.core.MessageProperties;
+import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@SpringBootTest
+@AutoConfigureMockMvc(addFilters = false)
+@ActiveProfiles("test")
+class ReportsIntegrationEventTest {
+    @Autowired ReportsIntegrationEventListener listener;
+    @Autowired ShipmentTrackingViewJpaRepository tracking;
+    @Autowired ShipmentTransitViewJpaRepository transit;
+    @Autowired ShipmentVolumeViewJpaRepository volume;
+    @Autowired MessageConverter converter;
+    @Autowired MockMvc mvc;
+
+    private final Instant registered = Instant.now().minusSeconds(4 * 86400);
+
+    @BeforeEach
+    void clear() {
+        tracking.deleteAll();
+        transit.deleteAll();
+        volume.deleteAll();
+    }
+
+    @Test
+    void jsonEventUpdatesThreeProjectionsAndTrackingAndDelayEndpoints() throws Exception {
+        var event = created();
+        var message = converter.toMessage(event, new MessageProperties());
+        message.getMessageProperties().setInferredArgumentType(EnvioCreadoEvent.class);
+        listener.onShipmentCreated((EnvioCreadoEvent) converter.fromMessage(message));
+        listener.onLogisticsRegistered(movement("DISPATCHED", "IN_TRANSIT", registered.plusSeconds(3600)));
+
+        assertEquals(1, tracking.count());
+        assertEquals(1, transit.count());
+        assertEquals(1, volume.count());
+        assertEquals(6, tracking.findById("TF-TEST").orElseThrow().getPlannedLegHours());
+        mvc.perform(get("/api/tracking/TF-TEST"))
+                .andExpect(status().isOk()).andExpect(jsonPath("status").value("IN_TRANSIT"));
+        mvc.perform(get("/api/reports/delayed-shipments"))
+                .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("TF-TEST")));
+    }
+
+    @Test
+    void redeliveredCreationDoesNotEraseMovementsOrDuplicateVolume() {
+        listener.onShipmentCreated(created());
+        listener.onLogisticsRegistered(movement("DELIVERED", "DELIVERED", registered.plusSeconds(7200)));
+        listener.onShipmentCreated(created());
+        assertEquals("DELIVERED", tracking.findById("TF-TEST").orElseThrow().getStatus());
+        assertNotNull(transit.findById("TF-TEST").orElseThrow().getDeliveredAt());
+        assertNotNull(volume.findById("TF-TEST").orElseThrow().getDeliveredAt());
+        assertEquals(1, volume.count());
+    }
+
+    @Test
+    void movementBeforeCreationFailsForRetryInsteadOfBeingSilentlyLost() {
+        assertThrows(IllegalStateException.class,
+                () -> listener.onLogisticsRegistered(movement("DISPATCHED", "IN_TRANSIT", registered)));
+        assertEquals(0, tracking.count());
+        listener.onShipmentCreated(created());
+        listener.onLogisticsRegistered(movement("DISPATCHED", "IN_TRANSIT", registered));
+        assertEquals("IN_TRANSIT", tracking.findById("TF-TEST").orElseThrow().getStatus());
+    }
+
+    @Test
+    void invalidCreationDoesNotPartiallyPersist() {
+        var invalid = new EnvioCreadoEvent("TF-TEST", "REGISTERED", "Sender", null, "Origin",
+                "Recipient", "Address", 2L, "Destination", registered, registered);
+        assertThrows(NullPointerException.class, () -> listener.onShipmentCreated(invalid));
+        assertEquals(0, tracking.count());
+        assertEquals(0, volume.count());
+        assertEquals(0, transit.count());
+    }
+
+    @Test
+    void olderMovementDoesNotRegressTracking() {
+        listener.onShipmentCreated(created());
+        listener.onLogisticsRegistered(movement("DELIVERED", "DELIVERED", registered.plusSeconds(7200)));
+        listener.onLogisticsRegistered(movement("DISPATCHED", "IN_TRANSIT", registered.plusSeconds(3600)));
+        assertEquals("DELIVERED", tracking.findById("TF-TEST").orElseThrow().getStatus());
+    }
+
+    private EnvioCreadoEvent created() {
+        return new EnvioCreadoEvent("TF-TEST", "REGISTERED", "Sender", 1L, "Origin",
+                "Recipient", "Address", 2L, "Destination", registered, registered);
+    }
+
+    private EventoLogisticoRegistradoEvent movement(String type, String status, Instant movedAt) {
+        return new EventoLogisticoRegistradoEvent(1L, "TF-TEST", type, status, "Center", 10L,
+                1L, "Origin", movedAt, movedAt, movedAt, 2L, "Destination", 6);
+    }
+}

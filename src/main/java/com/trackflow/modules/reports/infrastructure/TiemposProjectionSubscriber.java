@@ -4,10 +4,9 @@ import com.trackflow.modules.reports.application.ProyectarTiemposDeTransito;
 import com.trackflow.shared.events.EnvioCreadoEvent;
 import com.trackflow.shared.events.EventoLogisticoRegistradoEvent;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.context.event.EventListener;
 
-/** Alimenta la proyección de tiempos de tránsito; aparte de las otras para que un fallo no arrastre a las demás. */
+/** Alimenta tiempos de transito en la transaccion del mensaje recibido. */
 @Component
 public class TiemposProjectionSubscriber {
 
@@ -17,12 +16,12 @@ public class TiemposProjectionSubscriber {
         this.proyeccion = proyeccion;
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     public void on(EnvioCreadoEvent event) {
         proyeccion.alCrearEnvio(event);
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     public void on(EventoLogisticoRegistradoEvent event) {
         proyeccion.alRegistrarEvento(event);
     }

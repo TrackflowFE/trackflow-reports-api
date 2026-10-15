@@ -4,7 +4,6 @@ import com.trackflow.modules.reports.domain.ShipmentTrackingView;
 import com.trackflow.shared.events.EnvioCreadoEvent;
 import com.trackflow.shared.events.EventoLogisticoRegistradoEvent;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -16,8 +15,11 @@ public class ProyectarSeguimientoEnvio {
         this.repository = repository;
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void alCrearEnvio(EnvioCreadoEvent event) {
+        if (repository.findByTrackingNumber(event.trackingNumber()).isPresent()) {
+            return;
+        }
         ShipmentTrackingView view = new ShipmentTrackingView(
                 event.trackingNumber(),
                 event.status(),
@@ -29,7 +31,7 @@ public class ProyectarSeguimientoEnvio {
         repository.save(view);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void alRegistrarEvento(EventoLogisticoRegistradoEvent event) {
         repository.findByTrackingNumber(event.trackingNumber())
                 .ifPresent(view -> {
