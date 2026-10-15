@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: trackflow-reports-api
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: main
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: TRACKFLOW_DB_URL
+        sync: false
+      - key: TRACKFLOW_DB_USER
+        sync: false
+      - key: TRACKFLOW_DB_PASSWORD
+        sync: false
+      - key: RABBITMQ_HOST
+        sync: false
+      - key: RABBITMQ_USER
+        sync: false
+      - key: RABBITMQ_PASSWORD
+        sync: false
+      - key: RABBITMQ_VHOST
+        sync: false
+      - key: RABBITMQ_PORT
+        value: "5671"
+      - key: RABBITMQ_SSL
+        value: "true"
+      - key: TRACKFLOW_JWT_SECRET
+        sync: false
+      - key: TRACKFLOW_SECURITY_ENABLED
+        value: "true"
+      - key: TRACKFLOW_CORS_ORIGINS
+        sync: false
+      - key: TRACKFLOW_INACTIVIDAD_MINUTOS
+        value: "30"
+      - key: TRACKFLOW_EVENTS_EXCHANGE
+        value: trackflow.events
+      - key: TRACKFLOW_SHIPMENT_CREATED_KEY
+        value: shipment.created
+      - key: TRACKFLOW_LOGISTICS_REGISTERED_KEY
+        value: logistics.event.registered
