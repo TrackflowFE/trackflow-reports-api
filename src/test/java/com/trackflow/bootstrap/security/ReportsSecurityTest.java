@@ -11,6 +11,9 @@ import java.time.Instant;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -33,12 +36,53 @@ class ReportsSecurityTest {
 
     @BeforeEach
     void session() {
+        jdbc.update("delete from reports_shipment_tracking");
+        jdbc.update("delete from reports_shipment_transit");
+        jdbc.update("delete from reports_shipment_volume");
         jdbc.update("delete from auth_sessions");
         jdbc.update("delete from auth_users");
         jdbc.update("insert into auth_users(username, active) values ('operator', true)");
         jdbc.update("insert into auth_sessions(jti, username, expires_at, last_activity_at) values (?, ?, ?, ?)",
                 "session-test", "operator", Timestamp.from(Instant.now().plusSeconds(3600)),
                 Timestamp.from(Instant.now()));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "delayed-shipments,OPERADOR,200", "delayed-shipments,ADMIN,200", "delayed-shipments,CLIENTE,403",
+            "transit-times,OPERADOR,200", "transit-times,ADMIN,200", "transit-times,CLIENTE,403",
+            "shipment-volume,OPERADOR,200", "shipment-volume,ADMIN,200", "shipment-volume,CLIENTE,403"})
+    void losTresReportesRespetanLaMatrizDeRoles(String report, String role, int expectedStatus) throws Exception {
+        mvc.perform(get("/api/reports/" + report).header("Authorization", token(role)))
+                .andExpect(status().is(expectedStatus));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"delayed-shipments", "transit-times", "shipment-volume"})
+    void losTresReportesRechazanTokenAusenteOInvalidoYEscrituras(String report) throws Exception {
+        String route = "/api/reports/" + report;
+        mvc.perform(get(route)).andExpect(status().isUnauthorized());
+        mvc.perform(get(route).header("Authorization", "Bearer invalid"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(post(route).header("Authorization", token("ADMIN")))
+                .andExpect(status().isForbidden());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/", "/actuator/health", "/v3/api-docs", "/api/tracking/UNKNOWN"})
+    void bearerInvalidoSeRechazaInclusoEnRutasPublicas(String route) throws Exception {
+        mvc.perform(get(route).header("Authorization", "Bearer invalid"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void publicosYDenegacionFinalConSeguridadActiva() throws Exception {
+        mvc.perform(get("/")).andExpect(status().is3xxRedirection());
+        mvc.perform(get("/v3/api-docs")).andExpect(status().isOk());
+        mvc.perform(get("/unmatched").header("Authorization", token("ADMIN")))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/tracking/UNKNOWN").header("Authorization", token("ADMIN")))
+                .andExpect(status().isForbidden());
     }
 
     @Test

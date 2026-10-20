@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.trackflow.modules.reports.infrastructure.ShipmentTrackingViewJpaRepository;
 import com.trackflow.modules.reports.infrastructure.ShipmentTransitViewJpaRepository;
 import com.trackflow.modules.reports.infrastructure.ShipmentVolumeViewJpaRepository;
+import com.trackflow.modules.reports.domain.HitoDelRecorrido;
+import com.trackflow.modules.reports.domain.ShipmentTransitView;
 import com.trackflow.shared.events.EnvioCreadoEvent;
 import com.trackflow.shared.events.EventoLogisticoRegistradoEvent;
 import java.time.Instant;
@@ -113,6 +115,55 @@ class ReportsIntegrationEventTest {
         listener.onLogisticsRegistered(movement("DELIVERED", "DELIVERED", registered.plusSeconds(7200)));
         listener.onLogisticsRegistered(movement("DISPATCHED", "IN_TRANSIT", registered.plusSeconds(3600)));
         assertEquals("DELIVERED", tracking.findById("TF-TEST").orElseThrow().getStatus());
+    }
+
+    @Test
+    void cincoHitosPersistenYSeRecarganEnSusColumnas() {
+        Instant at = Instant.parse("2026-10-01T12:00:00Z");
+        var view = new ShipmentTransitView("TF-ROUNDTRIP");
+        int index = 0;
+        for (HitoDelRecorrido hito : HitoDelRecorrido.values()) {
+            assertTrue(view.registrar(hito, at.plusSeconds(index++ * 60L)));
+        }
+        transit.saveAndFlush(view);
+
+        var loaded = transit.findById("TF-ROUNDTRIP").orElseThrow();
+        assertNotSame(view, loaded);
+        assertEquals(at, loaded.getReceivedAt());
+        assertEquals(at.plusSeconds(60), loaded.getDispatchedAt());
+        assertEquals(at.plusSeconds(120), loaded.getArrivedAt());
+        assertEquals(at.plusSeconds(180), loaded.getOutForDeliveryAt());
+        assertEquals(at.plusSeconds(240), loaded.getDeliveredAt());
+        index = 0;
+        for (HitoDelRecorrido hito : HitoDelRecorrido.values()) {
+            assertEquals(at.plusSeconds(index++ * 60L), loaded.get(hito));
+        }
+    }
+
+    @Test
+    void falloDeVolumenEnMovimientoRevierteLasTresActualizacionesYPermiteReintento() {
+        listener.onShipmentCreated(created());
+        Instant received = registered.truncatedTo(java.time.temporal.ChronoUnit.MICROS).plusSeconds(60);
+        Instant delivered = received.plusSeconds(60);
+        listener.onLogisticsRegistered(movement("RECEIVED_AT_CENTER", "AT_ORIGIN_CENTER", received));
+        jdbc.execute("alter table reports_shipment_volume add constraint test_reject_delivery check (delivered_at is null)");
+        try {
+            assertThrows(RuntimeException.class,
+                    () -> listener.onLogisticsRegistered(movement("DELIVERED", "DELIVERED", delivered)));
+            var persistedTracking = tracking.findById("TF-TEST").orElseThrow();
+            assertEquals("AT_ORIGIN_CENTER", persistedTracking.getStatus());
+            assertEquals(received, persistedTracking.getLastMovementAt());
+            assertEquals(received, transit.findById("TF-TEST").orElseThrow().getReceivedAt());
+            assertNull(transit.findById("TF-TEST").orElseThrow().getDeliveredAt());
+            assertEquals(received, volume.findById("TF-TEST").orElseThrow().getReceivedAt());
+            assertNull(volume.findById("TF-TEST").orElseThrow().getDeliveredAt());
+        } finally {
+            jdbc.execute("alter table reports_shipment_volume drop constraint test_reject_delivery");
+        }
+        listener.onLogisticsRegistered(movement("DELIVERED", "DELIVERED", delivered));
+        assertEquals("DELIVERED", tracking.findById("TF-TEST").orElseThrow().getStatus());
+        assertEquals(delivered, transit.findById("TF-TEST").orElseThrow().getDeliveredAt());
+        assertEquals(delivered, volume.findById("TF-TEST").orElseThrow().getDeliveredAt());
     }
 
     private EnvioCreadoEvent created() {
