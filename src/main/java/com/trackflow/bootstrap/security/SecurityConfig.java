@@ -24,15 +24,10 @@ public class SecurityConfig {
                     auth.requestMatchers("/", "/error", "/actuator/health/**", "/swagger-ui.html",
                             "/swagger-ui/**", "/v3/api-docs/**").permitAll();
                     auth.requestMatchers(HttpMethod.GET, "/api/tracking/**").permitAll();
-                    if (properties.enabled()) {
-                        auth.requestMatchers(HttpMethod.GET, "/api/reports/**").hasAnyRole("OPERADOR", "ADMIN");
-                        auth.anyRequest().denyAll();
-                    } else {
-                        auth.requestMatchers(HttpMethod.GET, "/api/reports/**").permitAll();
-                        auth.anyRequest().denyAll();
-                    }
                 });
         if (properties.enabled()) {
+            http.authorizeHttpRequests(auth -> auth.requestMatchers(HttpMethod.GET, "/api/reports/**")
+                    .hasAnyRole("OPERADOR", "ADMIN"));
             var authorities = new JwtGrantedAuthoritiesConverter();
             authorities.setAuthoritiesClaimName("roles");
             authorities.setAuthorityPrefix("ROLE_");
@@ -40,9 +35,11 @@ public class SecurityConfig {
             converter.setJwtGrantedAuthoritiesConverter(authorities);
             http.oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(converter)));
         } else {
+            http.authorizeHttpRequests(auth -> auth.requestMatchers(HttpMethod.GET, "/api/reports/**").permitAll());
             LoggerFactory.getLogger(SecurityConfig.class).warn(
                     "TRACKFLOW_SECURITY_ENABLED=false: solo para desarrollo local, nunca en Render");
         }
+        http.authorizeHttpRequests(auth -> auth.anyRequest().denyAll());
         return http.build();
     }
 }

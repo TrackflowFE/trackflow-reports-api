@@ -4,6 +4,8 @@ import com.trackflow.modules.reports.application.EnviosRetrasados;
 import com.trackflow.modules.reports.domain.Severidad;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 public record EnviosRetrasadosResponse(
         /** Instante con el que se midió el retraso. */
@@ -19,6 +21,9 @@ public record EnviosRetrasadosResponse(
         List<ShipmentResponse> shipments) {
 
     static final String SIN_RETRASOS = "No hay envíos retrasados en este momento";
+
+    private static final Map<Severidad, String> SEVERIDADES = Map.of(
+            Severidad.LEVE, "LOW", Severidad.MODERADA, "MODERATE", Severidad.CRITICA, "CRITICAL");
 
     /**
      * lastPoint es null si el envío nunca ha tenido un movimiento. nextStop dice hacia dónde
@@ -38,11 +43,7 @@ public record EnviosRetrasadosResponse(
         }
 
         private static String severidad(Severidad severidad) {
-            return switch (severidad) {
-                case LEVE -> "LOW";
-                case MODERADA -> "MODERATE";
-                case CRITICA -> "CRITICAL";
-            };
+            return SEVERIDADES.get(Objects.requireNonNull(severidad));
         }
     }
 

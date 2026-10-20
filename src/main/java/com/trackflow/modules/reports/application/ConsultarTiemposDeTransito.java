@@ -44,7 +44,10 @@ public class ConsultarTiemposDeTransito {
         List<PromedioDeTramo> tramos = Arrays.stream(TramoDeTransito.values())
                 .map(tramo -> {
                     Medicion m = mediciones.get(tramo.codigo());
-                    return new PromedioDeTramo(tramo, m == null ? null : m.promedio(), m == null ? 0 : m.envios());
+                    if (m == null) {
+                        return new PromedioDeTramo(tramo, null, 0);
+                    }
+                    return new PromedioDeTramo(tramo, m.promedio(), m.envios());
                 })
                 .toList();
 

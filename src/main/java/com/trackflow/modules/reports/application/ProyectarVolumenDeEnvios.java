@@ -3,6 +3,10 @@ package com.trackflow.modules.reports.application;
 import com.trackflow.modules.reports.domain.ShipmentVolumeView;
 import com.trackflow.shared.events.EnvioCreadoEvent;
 import com.trackflow.shared.events.EventoLogisticoRegistradoEvent;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.BiFunction;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +21,12 @@ public class ProyectarVolumenDeEnvios {
 
     static final String RECIBIDO_EN_CENTRO = "RECEIVED_AT_CENTER";
     static final String ENTREGADO = "DELIVERED";
+
+    private static final Map<String, BiFunction<ShipmentVolumeView, EventoLogisticoRegistradoEvent, Boolean>>
+            OPERACIONES = Collections.unmodifiableMap(new HashMap<>(Map.of(
+                    RECIBIDO_EN_CENTRO, (view, event) -> view.registrarIngreso(new ShipmentVolumeView.Ingreso(
+                            event.centerId(), event.point(), event.cityId(), event.cityName(), event.movedAt())),
+                    ENTREGADO, (view, event) -> view.registrarEntrega(event.movedAt()))));
 
     private final ShipmentVolumeViewRepository repository;
 
@@ -45,19 +55,14 @@ public class ProyectarVolumenDeEnvios {
 
     @Transactional
     public void alRegistrarEvento(EventoLogisticoRegistradoEvent event) {
-        boolean esIngreso = RECIBIDO_EN_CENTRO.equals(event.eventType());
-        boolean esEntrega = ENTREGADO.equals(event.eventType());
-        if (!esIngreso && !esEntrega) {
+        var operacion = OPERACIONES.get(event.eventType());
+        if (operacion == null) {
             return;
         }
 
         repository.findByTrackingNumber(event.trackingNumber())
                 .ifPresent(view -> {
-                    boolean aplicado = esIngreso
-                            ? view.registrarIngreso(new ShipmentVolumeView.Ingreso(
-                                    event.centerId(), event.point(), event.cityId(), event.cityName(),
-                                    event.movedAt()))
-                            : view.registrarEntrega(event.movedAt());
+                    boolean aplicado = operacion.apply(view, event);
 
                     if (aplicado) {
                         repository.save(view);

@@ -5,6 +5,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 /**
  * Modelo de lectura del reporte de tiempos de tránsito: una fila por envío con la hora
@@ -16,6 +19,23 @@ import java.time.Instant;
 @Entity
 @Table(name = "reports_shipment_transit")
 public class ShipmentTransitView {
+
+    private record Acceso(Function<ShipmentTransitView, Instant> leer,
+                          BiConsumer<ShipmentTransitView, Instant> escribir) {
+    }
+
+    // La tabla comparte la correspondencia sin cambiar los campos persistidos por JPA.
+    private static final Map<HitoDelRecorrido, Acceso> HITOS = Map.of(
+            HitoDelRecorrido.RECEIVED_AT_CENTER,
+            new Acceso(ShipmentTransitView::getReceivedAt, (view, at) -> view.receivedAt = at),
+            HitoDelRecorrido.DISPATCHED,
+            new Acceso(ShipmentTransitView::getDispatchedAt, (view, at) -> view.dispatchedAt = at),
+            HitoDelRecorrido.ARRIVED_AT_DESTINATION_CENTER,
+            new Acceso(ShipmentTransitView::getArrivedAt, (view, at) -> view.arrivedAt = at),
+            HitoDelRecorrido.OUT_FOR_DELIVERY,
+            new Acceso(ShipmentTransitView::getOutForDeliveryAt, (view, at) -> view.outForDeliveryAt = at),
+            HitoDelRecorrido.DELIVERED,
+            new Acceso(ShipmentTransitView::getDeliveredAt, (view, at) -> view.deliveredAt = at));
 
     @Id
     private String trackingNumber;
@@ -49,24 +69,12 @@ public class ShipmentTransitView {
             return false;
         }
 
-        switch (hito) {
-            case RECEIVED_AT_CENTER -> receivedAt = at;
-            case DISPATCHED -> dispatchedAt = at;
-            case ARRIVED_AT_DESTINATION_CENTER -> arrivedAt = at;
-            case OUT_FOR_DELIVERY -> outForDeliveryAt = at;
-            case DELIVERED -> deliveredAt = at;
-        }
+        HITOS.get(hito).escribir().accept(this, at);
         return true;
     }
 
     public Instant get(HitoDelRecorrido hito) {
-        return switch (hito) {
-            case RECEIVED_AT_CENTER -> receivedAt;
-            case DISPATCHED -> dispatchedAt;
-            case ARRIVED_AT_DESTINATION_CENTER -> arrivedAt;
-            case OUT_FOR_DELIVERY -> outForDeliveryAt;
-            case DELIVERED -> deliveredAt;
-        };
+        return HITOS.get(hito).leer().apply(this);
     }
 
     public String getTrackingNumber() { return trackingNumber; }

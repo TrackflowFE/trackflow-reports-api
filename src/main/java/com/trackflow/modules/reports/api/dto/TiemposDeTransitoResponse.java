@@ -59,13 +59,12 @@ public record TiemposDeTransitoResponse(
 
     /** "1 d 4 h 30 min"; omite las unidades en cero y nunca devuelve vacío. */
     static String formatear(Duration duracion) {
-        long dias = duracion.toDays();
-        long horas = duracion.toHoursPart();
-        long minutos = duracion.toMinutesPart();
+        long[] valores = {duracion.toDays(), duracion.toHoursPart(), duracion.toMinutesPart()};
+        String[] unidades = {" d ", " h ", " min "};
         StringBuilder texto = new StringBuilder();
-        if (dias > 0) texto.append(dias).append(" d ");
-        if (horas > 0) texto.append(horas).append(" h ");
-        if (minutos > 0) texto.append(minutos).append(" min ");
+        for (int i = 0; i < valores.length; i++) {
+            if (valores[i] > 0) texto.append(valores[i]).append(unidades[i]);
+        }
         return texto.isEmpty() ? "menos de 1 min" : texto.toString().trim();
     }
 }
