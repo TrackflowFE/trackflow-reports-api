@@ -67,7 +67,28 @@ class ReporteEnviosRetrasadosControllerTest {
                 .andExpect(jsonPath("$.message").doesNotExist())
                 .andExpect(jsonPath("$.shipments[0].trackingNumber").value("TRK-9"))
                 .andExpect(jsonPath("$.shipments[0].hoursOver").value(4))
+                .andExpect(jsonPath("$.shipments[0].stopped.text").value("12 h"))
+                .andExpect(jsonPath("$.shipments[0].expected.text").value("8 h"))
+                .andExpect(jsonPath("$.shipments[0].over.text").value("4 h"))
+                .andExpect(jsonPath("$.shipments[0].over.seconds").value(Duration.ofHours(4).toSeconds()))
                 .andExpect(jsonPath("$.shipments[0].severity").value("MODERATE"))
                 .andExpect(jsonPath("$.shipments[0].nextStop").value("Cali"));
+    }
+
+    @Test
+    void unRetrasoDeVariosDiasSeExpresaEnDiasYHoras() throws Exception {
+        EnviosRetrasados.Retraso retraso = new EnviosRetrasados.Retraso(
+                "TRK-10", "IN_TRANSIT", "Centro norte", "Bogota", "Cali",
+                Duration.ofHours(2068), Duration.ofHours(24), Severidad.CRITICA,
+                null, null);
+        when(consultar.ejecutar()).thenReturn(
+                new EnviosRetrasados(Instant.parse("2026-10-16T12:00:00Z"), List.of(retraso)));
+
+        mockMvc.perform(get("/api/reports/delayed-shipments"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.shipments[0].stopped.text").value("86 d 4 h"))
+                .andExpect(jsonPath("$.shipments[0].expected.text").value("1 d"))
+                .andExpect(jsonPath("$.shipments[0].over.text").value("85 d 4 h"))
+                .andExpect(jsonPath("$.shipments[0].hoursStopped").value(2068));
     }
 }
