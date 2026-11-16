@@ -84,6 +84,22 @@ class ReporteTiemposDeTransitoControllerTest {
     }
 
     @Test
+    void devuelve400CuandoElPeriodoEmpiezaAntesDeLaOperacion() throws Exception {
+        // Arrange
+        LocalDate desde = LocalDate.of(1939, 1, 1);
+        LocalDate hasta = LocalDate.of(1944, 5, 7);
+        when(consultarTiempos.ejecutar(desde, hasta)).thenThrow(new PeriodoInvalidoException(
+                "El periodo empieza antes del inicio de la operación (2026-01-01); no hay envíos anteriores a esa fecha"));
+
+        // Act / Assert
+        mockMvc.perform(get("/api/reports/transit-times")
+                        .param("from", "1939-01-01")
+                        .param("to", "1944-05-07"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Periodo inválido"));
+    }
+
+    @Test
     void devuelve400CuandoLaFechaNoTieneElFormatoEsperado() throws Exception {
         // Arrange
 

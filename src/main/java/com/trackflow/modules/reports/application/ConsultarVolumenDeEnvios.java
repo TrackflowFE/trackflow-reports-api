@@ -28,10 +28,12 @@ public class ConsultarVolumenDeEnvios {
 
     private final ShipmentVolumeViewRepository repository;
     private final Clock clock;
+    private final LimitesDePeriodo limites;
 
-    public ConsultarVolumenDeEnvios(ShipmentVolumeViewRepository repository, Clock clock) {
+    public ConsultarVolumenDeEnvios(ShipmentVolumeViewRepository repository, Clock clock, LimitesDePeriodo limites) {
         this.repository = repository;
         this.clock = clock;
+        this.limites = limites;
     }
 
     /**
@@ -40,7 +42,7 @@ public class ConsultarVolumenDeEnvios {
      */
     @Transactional(readOnly = true)
     public VolumenDeEnvios ejecutar(LocalDate desde, LocalDate hasta) {
-        PeriodoDeConsulta periodo = PeriodoDeConsulta.resolver(desde, hasta, clock);
+        PeriodoDeConsulta periodo = PeriodoDeConsulta.resolver(desde, hasta, clock, limites);
         Instant inicio = periodo.inicio();
         Instant corte = periodo.corte();
 

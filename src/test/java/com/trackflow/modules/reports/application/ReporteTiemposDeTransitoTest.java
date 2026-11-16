@@ -30,10 +30,11 @@ class ReporteTiemposDeTransitoTest {
 
     /** Hoy es 10 de octubre de 2026, 12:00 en Colombia (17:00 UTC). */
     private static final Instant AHORA = Instant.parse("2026-10-10T17:00:00Z");
+    private static final LimitesDePeriodo LIMITES = new LimitesDePeriodo(LocalDate.of(2026, 1, 1), 366);
     private final Clock clock = Clock.fixed(AHORA, ZoneOffset.UTC);
     private final EnMemoria repositorio = new EnMemoria();
     private final ProyectarTiemposDeTransito proyeccion = new ProyectarTiemposDeTransito(repositorio);
-    private final ConsultarTiemposDeTransito consulta = new ConsultarTiemposDeTransito(repositorio, clock);
+    private final ConsultarTiemposDeTransito consulta = new ConsultarTiemposDeTransito(repositorio, clock, LIMITES);
 
     @Test
     void periodoConEntregasCalculaPromedioTotalYPorTramo() {

@@ -23,15 +23,18 @@ public class ConsultarTiemposDeTransito {
 
     private final ShipmentTransitViewRepository repository;
     private final Clock clock;
+    private final LimitesDePeriodo limites;
 
-    public ConsultarTiemposDeTransito(ShipmentTransitViewRepository repository, Clock clock) {
+    public ConsultarTiemposDeTransito(ShipmentTransitViewRepository repository, Clock clock,
+            LimitesDePeriodo limites) {
         this.repository = repository;
         this.clock = clock;
+        this.limites = limites;
     }
 
     @Transactional(readOnly = true)
     public TiemposDeTransito ejecutar(LocalDate desde, LocalDate hasta) {
-        PeriodoDeConsulta periodo = PeriodoDeConsulta.resolver(desde, hasta, clock);
+        PeriodoDeConsulta periodo = PeriodoDeConsulta.resolver(desde, hasta, clock, limites);
 
         long entregados = repository.contarEntregadosEntre(periodo.inicio(), periodo.corte());
         if (entregados == 0) {

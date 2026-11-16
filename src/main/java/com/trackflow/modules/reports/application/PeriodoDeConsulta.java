@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 
 /**
  * Periodo de un reporte, expresado en días calendario de Colombia: "el 15 de
@@ -25,7 +26,7 @@ record PeriodoDeConsulta(LocalDate desde, LocalDate hasta, Instant inicio, Insta
      * @param desde primer día, inclusive; si es null, hoy
      * @param hasta último día, inclusive; si es null, el mismo día que {@code desde}
      */
-    static PeriodoDeConsulta resolver(LocalDate desde, LocalDate hasta, Clock clock) {
+    static PeriodoDeConsulta resolver(LocalDate desde, LocalDate hasta, Clock clock, LimitesDePeriodo limites) {
         Instant ahora = clock.instant();
         LocalDate hoy = LocalDate.ofInstant(ahora, ZONA_OPERACION);
 
@@ -40,6 +41,17 @@ record PeriodoDeConsulta(LocalDate desde, LocalDate hasta, Instant inicio, Insta
             throw new PeriodoInvalidoException(
                     "El periodo empieza en el futuro (%s); hoy es %s y el reporte solo cubre lo que ya ocurrió"
                             .formatted(primerDia, hoy));
+        }
+        if (primerDia.isBefore(limites.inicioOperacion())) {
+            throw new PeriodoInvalidoException(
+                    "El periodo empieza antes del inicio de la operación (%s); no hay envíos anteriores a esa fecha"
+                            .formatted(limites.inicioOperacion()));
+        }
+        long dias = ChronoUnit.DAYS.between(primerDia, ultimoDia) + 1;
+        if (dias > limites.maximoDias()) {
+            throw new PeriodoInvalidoException(
+                    "El periodo abarca %d días; el máximo es %d. Acorte el rango"
+                            .formatted(dias, limites.maximoDias()));
         }
 
         Instant inicio = primerDia.atStartOfDay(ZONA_OPERACION).toInstant();

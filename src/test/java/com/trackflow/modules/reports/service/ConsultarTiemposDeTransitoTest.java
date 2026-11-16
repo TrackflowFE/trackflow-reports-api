@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.trackflow.modules.reports.application.ConsultarTiemposDeTransito;
+import com.trackflow.modules.reports.application.LimitesDePeriodo;
 import com.trackflow.modules.reports.application.ShipmentTransitViewRepository;
 import com.trackflow.modules.reports.application.ShipmentTransitViewRepository.Medicion;
 import com.trackflow.modules.reports.application.TiemposDeTransito;
@@ -27,6 +28,7 @@ class ConsultarTiemposDeTransitoTest {
 
     private static final Instant AHORA = Instant.parse("2026-10-10T17:00:00Z");
     private static final Instant INICIO = Instant.parse("2026-10-10T05:00:00Z");
+    private static final LimitesDePeriodo LIMITES = new LimitesDePeriodo(LocalDate.of(2020, 1, 1), 366);
 
     @Mock
     private ShipmentTransitViewRepository repository;
@@ -34,10 +36,10 @@ class ConsultarTiemposDeTransitoTest {
     private ConsultarTiemposDeTransito consulta;
 
     @Test
-    @DisplayName("devuelve un reporte vacío sin calcular promedios si no hay entregas")
+    @DisplayName("devuelve un reporte vacÃ­o sin calcular promedios si no hay entregas")
     void devuelveUnReporteVacioSinEntregas() {
         // Arrange
-        consulta = new ConsultarTiemposDeTransito(repository, Clock.fixed(AHORA, ZoneOffset.UTC));
+        consulta = new ConsultarTiemposDeTransito(repository, Clock.fixed(AHORA, ZoneOffset.UTC), LIMITES);
         when(repository.contarEntregadosEntre(INICIO, AHORA)).thenReturn(0L);
 
         // Act
@@ -56,7 +58,7 @@ class ConsultarTiemposDeTransitoTest {
     @DisplayName("mapea las mediciones totales y por tramo")
     void devuelveLosPromediosDeLosTramos() {
         // Arrange
-        consulta = new ConsultarTiemposDeTransito(repository, Clock.fixed(AHORA, ZoneOffset.UTC));
+        consulta = new ConsultarTiemposDeTransito(repository, Clock.fixed(AHORA, ZoneOffset.UTC), LIMITES);
         when(repository.contarEntregadosEntre(INICIO, AHORA)).thenReturn(2L);
         when(repository.medirEntregadosEntre(INICIO, AHORA)).thenReturn(Map.of(
                 ShipmentTransitViewRepository.TOTAL, new Medicion(Duration.ofHours(48), 2),
@@ -87,3 +89,4 @@ class ConsultarTiemposDeTransitoTest {
         verify(repository).medirEntregadosEntre(INICIO, AHORA);
     }
 }
+
