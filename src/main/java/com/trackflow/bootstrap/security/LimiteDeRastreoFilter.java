@@ -77,6 +77,7 @@ public class LimiteDeRastreoFilter extends OncePerRequestFilter {
         response.setStatus(429);
         response.setHeader("Retry-After", Long.toString(espera));
         response.setHeader("Cache-Control", "no-store");
+        response.setCharacterEncoding("UTF-8");
         response.setContentType("application/problem+json");
         response.getWriter().write(
                 "{\"title\":\"Demasiadas consultas\",\"status\":429,\"detail\":\"Superaste el límite de "

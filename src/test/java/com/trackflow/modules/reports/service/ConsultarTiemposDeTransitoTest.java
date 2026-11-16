@@ -36,7 +36,7 @@ class ConsultarTiemposDeTransitoTest {
     private ConsultarTiemposDeTransito consulta;
 
     @Test
-    @DisplayName("devuelve un reporte vacÃ­o sin calcular promedios si no hay entregas")
+    @DisplayName("devuelve un reporte vacío sin calcular promedios si no hay entregas")
     void devuelveUnReporteVacioSinEntregas() {
         // Arrange
         consulta = new ConsultarTiemposDeTransito(repository, Clock.fixed(AHORA, ZoneOffset.UTC), LIMITES);
@@ -89,4 +89,3 @@ class ConsultarTiemposDeTransitoTest {
         verify(repository).medirEntregadosEntre(INICIO, AHORA);
     }
 }
-
