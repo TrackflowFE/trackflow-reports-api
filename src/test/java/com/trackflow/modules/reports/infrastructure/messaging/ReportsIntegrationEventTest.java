@@ -75,6 +75,23 @@ class ReportsIntegrationEventTest {
     }
 
     @Test
+    void recogidaProyectaCustodiaYRetrasoSinCrearHitosDeTransito() throws Exception {
+        listener.onShipmentCreated(created());
+        Instant pickedUp = registered.plusSeconds(3600);
+        listener.onLogisticsRegistered(new EventoLogisticoRegistradoEvent(
+                1L, "TF-TEST", "PICKED_UP", "IN_CUSTODY", "Recogida a domicilio", null,
+                1L, "Origin", pickedUp, pickedUp, pickedUp, null, null, null));
+
+        assertEquals("IN_CUSTODY", tracking.findById("TF-TEST").orElseThrow().getStatus());
+        var recorrido = transit.findById("TF-TEST").orElseThrow();
+        for (HitoDelRecorrido hito : HitoDelRecorrido.values()) {
+            assertNull(recorrido.get(hito));
+        }
+        mvc.perform(get("/api/reports/delayed-shipments"))
+                .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("TF-TEST")));
+    }
+
+    @Test
     void movementBeforeCreationFailsForRetryInsteadOfBeingSilentlyLost() {
         assertThrows(IllegalStateException.class,
                 () -> listener.onLogisticsRegistered(movement("DISPATCHED", "IN_TRANSIT", registered)));
