@@ -24,7 +24,14 @@ public record TrackingResponse(
         /**
          * Dirección del destinatario. Solo viene informada cuando status es
          * DELIVERED: antes de eso el paquete no ha llegado ahí, así que mostrarla no
-         * tiene sentido; en cualquier otro estado este campo es null.
+         * tiene sentido; en cualquier otro estado este campo es null. Para un anónimo
+         * siempre es null.
          */
-        String recipientAddress) {
+        String recipientAddress,
+
+        /**
+         * true cuando la respuesta se sirvió a un anónimo: los nombres vienen
+         * enmascarados y la dirección se omite.
+         */
+        boolean restricted) {
 }
