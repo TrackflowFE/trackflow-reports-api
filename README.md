@@ -68,6 +68,10 @@ de escritura ni clientes HTTP de otras APIs.
 | `TRACKFLOW_REPORTS_DLX` | `trackflow.reports.dlx` |
 | `TRACKFLOW_REPORTS_DLQ` | `trackflow.reports.events.dlq` |
 
+La propiedad Spring `trackflow.reports.retraso.max-horas.in-custody` configura
+el limite sin movimiento en custodia, por defecto 24 horas. Puede establecerse
+mediante la variable `TRACKFLOW_REPORTS_RETRASO_MAX_HORAS_IN_CUSTODY`.
+
 El pool Hikari tiene maximo **3 conexiones**, minimo 1. Hibernate solo valida
 el esquema; Flyway esta desactivado y no forma parte de las dependencias.
 No regenerar el secreto JWT en Render: debe coincidir entre los tres servicios.
@@ -111,6 +115,9 @@ Java de los productores ni cambiar los campos existentes.
 Datos de centros/ciudades pueden ser null para movimientos historicos; datos
 de siguiente parada y duracion son null salvo en despachos. La regla de retraso
 usa `plannedLegHours` del evento, nunca tablas de logistics.
+El movimiento `PICKED_UP` puede llegar con `resultingStatus: IN_CUSTODY` y sin
+centro; actualiza el seguimiento y cuenta para retrasos, pero no es un hito de
+tiempos de transito. API 3 debe producir este evento tras la recogida vinculada.
 
 Los nombres de exchange/routing keys son configurables porque el PDF no los
 fija y el monolito aun publica eventos de dominio dentro del proceso. Deben

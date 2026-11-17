@@ -19,6 +19,7 @@ public final class ReglaDeRetraso {
     public static ReglaDeRetraso porDefecto() {
         return new ReglaDeRetraso(Map.of(
                 "REGISTERED", Duration.ofHours(24),
+                "IN_CUSTODY", Duration.ofHours(24),
                 "AT_DISTRIBUTION_CENTER", Duration.ofHours(24),
                 "IN_TRANSIT", Duration.ofHours(48),
                 "OUT_FOR_DELIVERY", Duration.ofHours(12)));

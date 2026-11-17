@@ -83,6 +83,19 @@ class ReporteEnviosRetrasadosTest {
         assertFalse(consulta.ejecutar().hayDatos());
     }
 
+    @Test
+    void custodiaSeConsideraRetrasadaSoloDespuesDeVeinticuatroHoras() {
+        envio("LIMITE", "IN_CUSTODY", "Recogida a domicilio", horasAtras(24));
+        envio("RETRASADO", "IN_CUSTODY", "Recogida a domicilio", horasAtras(25));
+
+        var retrasados = consulta.ejecutar().envios();
+
+        assertEquals(1, retrasados.size());
+        assertEquals("RETRASADO", retrasados.get(0).trackingNumber());
+        assertEquals(Duration.ofHours(24), retrasados.get(0).maximoEsperado());
+        assertEquals(Duration.ofHours(1), retrasados.get(0).exceso());
+    }
+
     // --- utilidades
 
     private static Instant horasAtras(long horas) {

@@ -14,11 +14,13 @@ public class ReglaDeRetrasoConfig {
     @Bean
     public ReglaDeRetraso reglaDeRetraso(
             @Value("${trackflow.reports.retraso.max-horas.registered:24}") long registrado,
+            @Value("${trackflow.reports.retraso.max-horas.in-custody:24}") long enCustodia,
             @Value("${trackflow.reports.retraso.max-horas.at-distribution-center:24}") long enCentro,
             @Value("${trackflow.reports.retraso.max-horas.in-transit:48}") long enTransito,
             @Value("${trackflow.reports.retraso.max-horas.out-for-delivery:12}") long enReparto) {
         return new ReglaDeRetraso(Map.of(
                 "REGISTERED", Duration.ofHours(registrado),
+                "IN_CUSTODY", Duration.ofHours(enCustodia),
                 "AT_DISTRIBUTION_CENTER", Duration.ofHours(enCentro),
                 "IN_TRANSIT", Duration.ofHours(enTransito),
                 "OUT_FOR_DELIVERY", Duration.ofHours(enReparto)));
