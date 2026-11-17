@@ -67,6 +67,12 @@ de escritura ni clientes HTTP de otras APIs.
 | `TRACKFLOW_REPORTS_LOGISTICS_QUEUE` | `trackflow.reports.logistics-registered` |
 | `TRACKFLOW_REPORTS_DLX` | `trackflow.reports.dlx` |
 | `TRACKFLOW_REPORTS_DLQ` | `trackflow.reports.events.dlq` |
+| `TRACKFLOW_REPORTS_INICIO_OPERACION` | Primer dia con envios, `2026-01-01`; antes de esa fecha los reportes responden 400 |
+| `TRACKFLOW_REPORTS_PERIODO_MAXIMO_DIAS` | Dias maximos de un periodo, `366` |
+| `TRACKFLOW_TRACKING_LIMITE_IP` | Consultas de rastreo por IP y ventana, `60` |
+| `TRACKFLOW_TRACKING_LIMITE_VENTANA_SEGUNDOS` | Ventana del limite de rastreo, `60` |
+| `TRACKFLOW_TRACKING_LIMITE_SALTOS_PROXY` | Posicion desde la derecha en `X-Forwarded-For`; `0` lo desactiva |
+| `TRACKFLOW_TRACKING_LIMITE_PROXIES_CONFIABLES` | IP o rangos CIDR de proxies confiables, separados por coma |
 
 La propiedad Spring `trackflow.reports.retraso.max-horas.in-custody` configura
 el limite sin movimiento en custodia, por defecto 24 horas. Puede establecerse
@@ -81,14 +87,44 @@ No regenerar el secreto JWT en Render: debe coincidir entre los tres servicios.
 | Metodo / ruta | Acceso | Historia |
 | --- | --- | --- |
 | `GET /api/tracking/{trackingNumber}` | Publico | HU-03 |
+| `GET /api/reports/period-limits` | OPERADOR o ADMIN | Limites del periodo para el formulario |
 | `GET /api/reports/transit-times?from=YYYY-MM-DD&to=YYYY-MM-DD` | OPERADOR o ADMIN | HU-05 |
 | `GET /api/reports/delayed-shipments` | OPERADOR o ADMIN | HU-06 |
 | `GET /api/reports/shipment-volume?from=YYYY-MM-DD&to=YYYY-MM-DD` | OPERADOR o ADMIN | HU-07 |
 
 Fechas de reportes en `America/Bogota`, dias inclusivos; sin fechas, el dia
-actual. Fechas invalidas/invertidas o inicio futuro: 400. Rastreo inexistente:
-404. Sin datos: 200 con mensaje, no error. Token ausente/invalido: 401; rol
-insuficiente: 403. El token se obtiene exclusivamente del login de API 1.
+actual. Fechas invalidas/invertidas, inicio futuro, inicio anterior a
+`TRACKFLOW_REPORTS_INICIO_OPERACION` o un rango mayor al maximo: 400 con el
+motivo. `GET /api/reports/period-limits` devuelve `{ "minDate", "maxDays" }`
+para que el formulario no ofrezca un periodo que el servidor va a rechazar.
+Rastreo inexistente: 404. Sin datos: 200 con mensaje, no error. Token
+ausente/invalido: 401; rol insuficiente: 403. El token se obtiene
+exclusivamente del login de API 1.
+
+### Rastreo publico
+
+El rastreo sigue siendo publico porque el numero de seguimiento es la
+credencial del cliente (HU-03 y HU-14). Un anonimo ve el estado, las ciudades,
+las fechas y el ultimo punto, pero los nombres del remitente y del destinatario
+llegan enmascarados (`L*** G***`), la direccion de entrega siempre es `null` y
+la respuesta trae `restricted: true`. Un operador o administrador con token ve
+la respuesta completa y `restricted: false`. La respuesta lleva
+`Cache-Control: no-store` para que un proxy no guarde la version del operador.
+
+El numero tiene 12 caracteres hexadecimales (16^12 combinaciones), asi que
+adivinarlo ya es inviable; el limite de consultas es una segunda barrera. Cada
+IP puede hacer `TRACKFLOW_TRACKING_LIMITE_IP` consultas por ventana; al
+superarlo responde 429 con `Retry-After`. Con `X-Forwarded-For` sin configurar
+todos los clientes comparten la cuota del proxy, por eso los proxies
+confiables se declaran por IP o rango CIDR.
+
+### Retrasos en dias y horas
+
+`GET /api/reports/delayed-shipments` conserva `hoursStopped`, `hoursExpected` y
+`hoursOver` y agrega `stopped`, `expected` y `over` con `{ seconds, text }`. El
+texto usa dias y, si queda una parte menor a un dia, horas: `86 d 4 h`, `2 d`,
+`23 h` o `menos de 1 h`. Los promedios de `transit-times` siguen en
+`1 d 4 h 30 min` porque ahi los minutos si importan.
 
 ## Contrato RabbitMQ
 

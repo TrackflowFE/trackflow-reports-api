@@ -33,7 +33,7 @@ public record TiemposDeTransitoResponse(
     public record Promedio(long seconds, String text) {
 
         static Promedio of(Duration duracion) {
-            return duracion == null ? null : new Promedio(duracion.toSeconds(), formatear(duracion));
+            return duracion == null ? null : new Promedio(duracion.toSeconds(), DuracionLegible.conMinutos(duracion));
         }
     }
 
@@ -55,16 +55,5 @@ public record TiemposDeTransitoResponse(
                                 Promedio.of(t.promedio()), t.envios()))
                         .toList(),
                 tiempos.hayDatos() ? null : SIN_DATOS);
-    }
-
-    /** "1 d 4 h 30 min"; omite las unidades en cero y nunca devuelve vacío. */
-    static String formatear(Duration duracion) {
-        long[] valores = {duracion.toDays(), duracion.toHoursPart(), duracion.toMinutesPart()};
-        String[] unidades = {" d ", " h ", " min "};
-        StringBuilder texto = new StringBuilder();
-        for (int i = 0; i < valores.length; i++) {
-            if (valores[i] > 0) texto.append(valores[i]).append(unidades[i]);
-        }
-        return texto.isEmpty() ? "menos de 1 min" : texto.toString().trim();
     }
 }

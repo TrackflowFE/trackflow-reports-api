@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.trackflow.modules.reports.application.ConsultarVolumenDeEnvios;
+import com.trackflow.modules.reports.application.LimitesDePeriodo;
 import com.trackflow.modules.reports.application.ShipmentVolumeViewRepository;
 import com.trackflow.modules.reports.application.VolumenDeEnvios;
 import com.trackflow.modules.reports.application.VolumenPorPunto;
@@ -26,6 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ConsultarVolumenDeEnviosTest {
 
     private static final Instant AHORA = Instant.parse("2026-10-10T17:00:00Z");
+    private static final LimitesDePeriodo LIMITES = new LimitesDePeriodo(LocalDate.of(2020, 1, 1), 366);
 
     @Mock
     private ShipmentVolumeViewRepository repository;
@@ -37,7 +39,7 @@ class ConsultarVolumenDeEnviosTest {
     void devuelveElVolumenOrdenadoDelPeriodo() {
         // Arrange
         var clock = Clock.fixed(AHORA, ZoneOffset.UTC);
-        consulta = new ConsultarVolumenDeEnvios(repository, clock);
+        consulta = new ConsultarVolumenDeEnvios(repository, clock, LIMITES);
         var desde = LocalDate.of(2026, 10, 10);
         var hasta = desde;
         var inicio = Instant.parse("2026-10-10T05:00:00Z");
@@ -68,7 +70,7 @@ class ConsultarVolumenDeEnviosTest {
     void rechazaUnPeriodoInvertido() {
         // Arrange
         var clock = Clock.fixed(AHORA, ZoneOffset.UTC);
-        consulta = new ConsultarVolumenDeEnvios(repository, clock);
+        consulta = new ConsultarVolumenDeEnvios(repository, clock, LIMITES);
 
         // Act / Assert
         assertThatThrownBy(() -> consulta.ejecutar(

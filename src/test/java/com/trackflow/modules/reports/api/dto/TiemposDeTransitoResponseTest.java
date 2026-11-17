@@ -22,16 +22,16 @@ class TiemposDeTransitoResponseTest {
             "-1,menos de 1 min", "-60,menos de 1 min", "-3600,menos de 1 min", "-86400,menos de 1 min"})
     void limitesYNegativosConservanTextoYSegundos(long seconds, String text) {
         var duration = Duration.ofSeconds(seconds);
-        assertEquals(text, TiemposDeTransitoResponse.formatear(duration));
+        assertEquals(text, DuracionLegible.conMinutos(duration));
         assertEquals(new TiemposDeTransitoResponse.Promedio(seconds, text),
                 TiemposDeTransitoResponse.Promedio.of(duration));
     }
 
     @Test
     void formateaLaDuracionOmitiendoUnidadesEnCero() {
-        assertEquals("1 d 4 h 30 min", TiemposDeTransitoResponse.formatear(Duration.ofMinutes(24 * 60 + 4 * 60 + 30)));
-        assertEquals("3 h", TiemposDeTransitoResponse.formatear(Duration.ofHours(3)));
-        assertEquals("menos de 1 min", TiemposDeTransitoResponse.formatear(Duration.ofSeconds(20)));
+        assertEquals("1 d 4 h 30 min", DuracionLegible.conMinutos(Duration.ofMinutes(24 * 60 + 4 * 60 + 30)));
+        assertEquals("3 h", DuracionLegible.conMinutos(Duration.ofHours(3)));
+        assertEquals("menos de 1 min", DuracionLegible.conMinutos(Duration.ofSeconds(20)));
     }
 
     @Test
