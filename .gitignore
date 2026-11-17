@@ -8,3 +8,5 @@ target/
 !.env.example
 *.pdf
 .mvn/wrapper/maven-wrapper.jar
+# Planes y estado local de las herramientas; no se versionan.
+.kilo/
