@@ -26,8 +26,9 @@ public class SecurityConfig {
                     auth.requestMatchers(HttpMethod.GET, "/api/tracking/**").permitAll();
                 });
         if (properties.enabled()) {
+            // HU-11: el operador registra, no supervisa; los reportes son del supervisor y del admin.
             http.authorizeHttpRequests(auth -> auth.requestMatchers(HttpMethod.GET, "/api/reports/**")
-                    .hasAnyRole("OPERADOR", "ADMIN"));
+                    .hasAnyRole("SUPERVISOR", "ADMIN"));
             var authorities = new JwtGrantedAuthoritiesConverter();
             authorities.setAuthoritiesClaimName("roles");
             authorities.setAuthorityPrefix("ROLE_");
