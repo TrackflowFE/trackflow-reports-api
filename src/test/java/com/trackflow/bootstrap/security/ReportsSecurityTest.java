@@ -49,9 +49,12 @@ class ReportsSecurityTest {
 
     @ParameterizedTest
     @CsvSource({
-            "delayed-shipments,OPERADOR,200", "delayed-shipments,ADMIN,200", "delayed-shipments,CLIENTE,403",
-            "transit-times,OPERADOR,200", "transit-times,ADMIN,200", "transit-times,CLIENTE,403",
-            "shipment-volume,OPERADOR,200", "shipment-volume,ADMIN,200", "shipment-volume,CLIENTE,403"})
+            "delayed-shipments,SUPERVISOR,200", "delayed-shipments,ADMIN,200",
+            "delayed-shipments,OPERADOR,403", "delayed-shipments,CLIENTE,403",
+            "transit-times,SUPERVISOR,200", "transit-times,ADMIN,200",
+            "transit-times,OPERADOR,403", "transit-times,CLIENTE,403",
+            "shipment-volume,SUPERVISOR,200", "shipment-volume,ADMIN,200",
+            "shipment-volume,OPERADOR,403", "shipment-volume,CLIENTE,403"})
     void losTresReportesRespetanLaMatrizDeRoles(String report, String role, int expectedStatus) throws Exception {
         mvc.perform(get("/api/reports/" + report).header("Authorization", token(role)))
                 .andExpect(status().is(expectedStatus));
@@ -92,19 +95,22 @@ class ReportsSecurityTest {
         mvc.perform(get("/api/reports/delayed-shipments")).andExpect(status().isUnauthorized());
     }
 
+    /** HU-11: los reportes son para supervision; quien registra envios no los ve. */
     @Test
-    void operatorAndAdministratorCanReadReports() throws Exception {
-        mvc.perform(get("/api/reports/delayed-shipments").header("Authorization", token("OPERADOR")))
+    void supervisorAndAdministratorCanReadReportsButOperatorCannot() throws Exception {
+        mvc.perform(get("/api/reports/delayed-shipments").header("Authorization", token("SUPERVISOR")))
                 .andExpect(status().isOk());
         mvc.perform(get("/api/reports/delayed-shipments").header("Authorization", token("ADMIN")))
                 .andExpect(status().isOk());
+        mvc.perform(get("/api/reports/delayed-shipments").header("Authorization", token("OPERADOR")))
+                .andExpect(status().isForbidden());
         mvc.perform(get("/api/reports/delayed-shipments").header("Authorization", token("CLIENTE")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void closedInactiveAndExpiredSessionsAreRejected() throws Exception {
-        String token = token("OPERADOR");
+        String token = token("SUPERVISOR");
         jdbc.update("update auth_sessions set closed_at = ?", Timestamp.from(Instant.now()));
         mvc.perform(get("/api/reports/delayed-shipments").header("Authorization", token))
                 .andExpect(status().isUnauthorized());
