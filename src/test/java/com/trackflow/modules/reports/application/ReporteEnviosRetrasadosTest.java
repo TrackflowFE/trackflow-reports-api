@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.trackflow.modules.reports.domain.ReglaDeRetraso;
 import com.trackflow.modules.reports.domain.Severidad;
 import com.trackflow.modules.reports.domain.ShipmentTrackingView;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -24,7 +25,7 @@ class ReporteEnviosRetrasadosTest {
     private final Clock clock = Clock.fixed(AHORA, ZoneOffset.UTC);
     private final EnMemoria repositorio = new EnMemoria();
     private final ConsultarEnviosRetrasados consulta =
-            new ConsultarEnviosRetrasados(repositorio, ReglaDeRetraso.porDefecto(), clock);
+            new ConsultarEnviosRetrasados(repositorio, ReglaDeRetraso.porDefecto(), clock, new SimpleMeterRegistry());
 
     @Test
     void losEnviosRetrasadosSeListanDelMasAtrasadoAlMenos() {

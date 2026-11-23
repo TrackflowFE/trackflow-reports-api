@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.trackflow.modules.reports.domain.PeriodoInvalidoException;
 import com.trackflow.modules.reports.domain.ShipmentTransitView;
 import com.trackflow.shared.events.EventoLogisticoRegistradoEvent;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -34,7 +35,7 @@ class ReporteTiemposDeTransitoTest {
     private final Clock clock = Clock.fixed(AHORA, ZoneOffset.UTC);
     private final EnMemoria repositorio = new EnMemoria();
     private final ProyectarTiemposDeTransito proyeccion = new ProyectarTiemposDeTransito(repositorio);
-    private final ConsultarTiemposDeTransito consulta = new ConsultarTiemposDeTransito(repositorio, clock, LIMITES);
+    private final ConsultarTiemposDeTransito consulta = new ConsultarTiemposDeTransito(repositorio, clock, LIMITES, new SimpleMeterRegistry());
 
     @Test
     void periodoConEntregasCalculaPromedioTotalYPorTramo() {

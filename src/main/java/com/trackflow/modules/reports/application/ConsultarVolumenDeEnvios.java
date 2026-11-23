@@ -1,5 +1,6 @@
 package com.trackflow.modules.reports.application;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -29,11 +30,14 @@ public class ConsultarVolumenDeEnvios {
     private final ShipmentVolumeViewRepository repository;
     private final Clock clock;
     private final LimitesDePeriodo limites;
+    private final MeterRegistry metricas;
 
-    public ConsultarVolumenDeEnvios(ShipmentVolumeViewRepository repository, Clock clock, LimitesDePeriodo limites) {
+    public ConsultarVolumenDeEnvios(ShipmentVolumeViewRepository repository, Clock clock, LimitesDePeriodo limites,
+            MeterRegistry metricas) {
         this.repository = repository;
         this.clock = clock;
         this.limites = limites;
+        this.metricas = metricas;
     }
 
     /**
@@ -53,6 +57,8 @@ public class ConsultarVolumenDeEnvios {
         long totalRegistrados = porPunto.stream().mapToLong(VolumenPorPunto::envios).sum();
         long totalEntregados = repository.entregadosEntre(inicio, corte);
 
+        // Solo cuenta los reportes entregados: un periodo inválido lanza antes de llegar aquí.
+        metricas.counter("trackflow_reportes_consultados_total", "tipo", "volumen").increment();
         return new VolumenDeEnvios(periodo.desde(), periodo.hasta(), inicio, corte, periodo.enCurso(),
                 totalRegistrados, totalEntregados, List.copyOf(porPunto));
     }

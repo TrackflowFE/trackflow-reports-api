@@ -4,6 +4,7 @@ import com.trackflow.modules.reports.application.EnviosRetrasados.Retraso;
 import com.trackflow.modules.reports.domain.ReglaDeRetraso;
 import com.trackflow.modules.reports.domain.Severidad;
 import com.trackflow.modules.reports.domain.ShipmentTrackingView;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -24,11 +25,14 @@ public class ConsultarEnviosRetrasados {
     private final EnviosEnRedRepository repository;
     private final ReglaDeRetraso regla;
     private final Clock clock;
+    private final MeterRegistry metricas;
 
-    public ConsultarEnviosRetrasados(EnviosEnRedRepository repository, ReglaDeRetraso regla, Clock clock) {
+    public ConsultarEnviosRetrasados(EnviosEnRedRepository repository, ReglaDeRetraso regla, Clock clock,
+            MeterRegistry metricas) {
         this.repository = repository;
         this.regla = regla;
         this.clock = clock;
+        this.metricas = metricas;
     }
 
     @Transactional(readOnly = true)
@@ -41,6 +45,7 @@ public class ConsultarEnviosRetrasados {
                 .sorted(Comparator.comparing(Retraso::exceso).reversed())
                 .toList();
 
+        metricas.counter("trackflow_reportes_consultados_total", "tipo", "envios_retrasados").increment();
         return new EnviosRetrasados(ahora, retrasados);
     }
 
