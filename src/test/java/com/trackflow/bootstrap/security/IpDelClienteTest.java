@@ -3,11 +3,18 @@ package com.trackflow.bootstrap.security;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.filter.ForwardedHeaderFilter;
@@ -103,5 +110,67 @@ class IpDelClienteTest {
         assertNotEquals(a, de.invoke(null, "10.0.0.0/16"));
         assertNotEquals(a, de.invoke(null, "11.0.0.0/8"));
         assertNotEquals(a, "10.0.0.0/8");
+    }
+
+    /** Captura los avisos de IpDelCliente mientras corre {@code accion}. */
+    private List<String> avisos(Runnable accion) {
+        Logger logger = (Logger) LoggerFactory.getLogger(IpDelCliente.class);
+        ListAppender<ILoggingEvent> capturados = new ListAppender<>();
+        capturados.start();
+        logger.addAppender(capturados);
+        try {
+            accion.run();
+        } finally {
+            logger.detachAppender(capturados);
+        }
+        return capturados.list.stream().filter(e -> e.getLevel() == Level.WARN)
+                .map(ILoggingEvent::getFormattedMessage).toList();
+    }
+
+    @Test
+    void avisaUnaSolaVezCuandoUnSaltoNoEsProxyConfiable() {
+        IpDelCliente ips = new IpDelCliente(2, "10.0.0.0/8");
+        List<String> avisos = avisos(() -> {
+            assertEquals("10.1.2.3", ips.obtener(request("10.1.2.3", "203.0.113.9, 104.22.17.40")));
+            assertEquals("10.1.2.3", ips.obtener(request("10.1.2.3", "198.51.100.7, 104.22.17.41")));
+        });
+        assertEquals(1, avisos.size());
+        assertTrue(avisos.get(0).contains("(10.1.2.3)"), avisos.get(0));
+        assertTrue(avisos.get(0).contains("la entrada 2 de X-Forwarded-For no es un proxy confiable"), avisos.get(0));
+        assertTrue(avisos.get(0).contains("[203.0.113.9, 104.22.17.40]"), avisos.get(0));
+    }
+
+    @Test
+    void avisaCuandoLaConexionNoVieneDeUnProxyConfiable() {
+        IpDelCliente ips = new IpDelCliente(2, "10.0.0.0/8");
+        List<String> avisos = avisos(() ->
+                assertEquals("172.16.0.5", ips.obtener(request("172.16.0.5", "203.0.113.9, 10.9.9.9"))));
+        assertEquals(1, avisos.size());
+        assertTrue(avisos.get(0).contains("la conexión no viene de un proxy confiable"), avisos.get(0));
+    }
+
+    @Test
+    void avisaCuandoFaltanEntradasEnLaCadena() {
+        IpDelCliente ips = new IpDelCliente(2, "10.0.0.0/8");
+        List<String> avisos = avisos(() -> assertEquals("10.1.2.3", ips.obtener(request("10.1.2.3", "203.0.113.9"))));
+        assertTrue(avisos.get(0).contains("trae 1 entradas y se esperan al menos 2"), avisos.get(0));
+    }
+
+    @Test
+    void elAvisoNoCopiaSaltosDeLineaDeLaCabecera() {
+        IpDelCliente ips = new IpDelCliente(1, "10.0.0.0/8");
+        List<String> avisos = avisos(() ->
+                assertEquals("10.1.2.3", ips.obtener(request("10.1.2.3", "1.2.3.4\nWARN falso"))));
+        assertEquals(1, avisos.size());
+        assertTrue(avisos.get(0).contains("dirección inválida"), avisos.get(0));
+        assertTrue(!avisos.get(0).contains("\n") && !avisos.get(0).contains("WARN falso"), avisos.get(0));
+    }
+
+    @Test
+    void noAvisaCuandoLaCadenaSeUsa() {
+        IpDelCliente ips = new IpDelCliente(2, "10.0.0.0/8,104.16.0.0/13");
+        List<String> avisos = avisos(() ->
+                assertEquals("203.0.113.9", ips.obtener(request("10.1.2.3", "203.0.113.9, 104.22.17.40"))));
+        assertTrue(avisos.isEmpty(), avisos.toString());
     }
 }
