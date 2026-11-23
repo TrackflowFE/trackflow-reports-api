@@ -28,6 +28,7 @@ final class IpDelCliente {
     private final int saltos;
     private final List<Rango> proxies;
     private final AtomicBoolean avisoProxySinSaltos = new AtomicBoolean();
+    private final AtomicBoolean avisoCadenaNoUsada = new AtomicBoolean();
 
     IpDelCliente(@Value("${trackflow.tracking.limite.saltos-proxy:0}") int saltos,
             @Value("${trackflow.tracking.limite.proxies-confiables:}") String proxies) {
@@ -59,27 +60,57 @@ final class IpDelCliente {
             avisarSiLlegaPorProxy(http);
             return remoto;
         }
-        if (http == null || !esProxy(remoto)) {
+        if (http == null) {
             return remoto;
         }
         List<String> cabeceras = Collections.list(http.getHeaders("X-Forwarded-For"));
-        if (cabeceras.isEmpty()) {
+        String recibida = String.join(",", cabeceras);
+        if (!esProxy(remoto)) {
+            avisarSiNoSeUsaLaCadena("la conexión no viene de un proxy confiable", remoto, recibida);
             return remoto;
         }
-        String[] cadena = String.join(",", cabeceras).split(",", -1);
+        if (cabeceras.isEmpty()) {
+            avisarSiNoSeUsaLaCadena("la petición llega sin X-Forwarded-For", remoto, recibida);
+            return remoto;
+        }
+        String[] cadena = recibida.split(",", -1);
         if (cadena.length < saltos || cadena.length > 64) {
+            avisarSiNoSeUsaLaCadena("X-Forwarded-For trae " + cadena.length + " entradas y se esperan al menos "
+                    + saltos, remoto, recibida);
             return remoto;
         }
         try {
             for (int i = cadena.length - 1; i > cadena.length - saltos; i--) {
                 if (!esProxy(cadena[i].trim())) {
+                    avisarSiNoSeUsaLaCadena("la entrada " + (i + 1) + " de X-Forwarded-For no es un proxy confiable",
+                            remoto, recibida);
                     return remoto;
                 }
             }
             return literal(cadena[cadena.length - saltos].trim());
         } catch (IllegalArgumentException e) {
+            avisarSiNoSeUsaLaCadena("X-Forwarded-For trae una dirección inválida", remoto, recibida);
             return remoto;
         }
+    }
+
+    /**
+     * Con saltos-proxy configurado, cualquier caída a la IP de la conexión hace que los clientes
+     * vuelvan a compartir la cuota del proxy. Se avisa una sola vez, con lo que realmente llegó,
+     * para poder ajustar TRACKFLOW_TRACKING_LIMITE_SALTOS_PROXY y ..._PROXIES_CONFIABLES sin adivinar.
+     */
+    private void avisarSiNoSeUsaLaCadena(String motivo, String remoto, String recibida) {
+        if (avisoCadenaNoUsada.compareAndSet(false, true)) {
+            log.warn("Rastreo: se cuenta la IP de la conexión ({}) y no la del cliente porque {}. "
+                    + "X-Forwarded-For recibido: [{}]. Revise TRACKFLOW_TRACKING_LIMITE_SALTOS_PROXY y "
+                    + "TRACKFLOW_TRACKING_LIMITE_PROXIES_CONFIABLES.", remoto, motivo, paraElLog(recibida));
+        }
+    }
+
+    /** La cabecera la escribe el cliente: sin saltos de línea y con largo acotado, para no falsear el log. */
+    private static String paraElLog(String valor) {
+        String limpio = valor.replaceAll("[^0-9A-Fa-f:., ]", "_");
+        return limpio.length() > 300 ? limpio.substring(0, 300) + "…" : limpio;
     }
 
     private void avisarSiLlegaPorProxy(HttpServletRequest http) {
