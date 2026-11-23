@@ -1,9 +1,12 @@
 package com.trackflow.bootstrap.security;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import jakarta.servlet.http.HttpServletRequestWrapper;
+import java.lang.reflect.Method;
+import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -82,5 +85,23 @@ class IpDelClienteTest {
     @Test
     void direccionRemotaNoLiteralNoRompeLaPeticion() {
         assertEquals("desconocida", new IpDelCliente(0, "").obtener(request("fe80::1%eth0", null)));
+    }
+
+    @Test
+    void elRangoSeComparaPorContenidoYNoPorReferencia() throws Exception {
+        // Rango es privado: se construye por reflexion con su fabrica Rango.de(...).
+        Class<?> tipo = Arrays.stream(IpDelCliente.class.getDeclaredClasses())
+                .filter(c -> c.getSimpleName().equals("Rango")).findFirst().orElseThrow();
+        Method de = tipo.getDeclaredMethod("de", String.class);
+        de.setAccessible(true);
+        Object a = de.invoke(null, "10.0.0.0/8");
+        Object b = de.invoke(null, "10.0.0.0/8");
+
+        assertEquals(a, b);
+        assertEquals(a.hashCode(), b.hashCode());
+        assertEquals("Rango[red=[10, 0, 0, 0], prefijo=8]", a.toString());
+        assertNotEquals(a, de.invoke(null, "10.0.0.0/16"));
+        assertNotEquals(a, de.invoke(null, "11.0.0.0/8"));
+        assertNotEquals(a, "10.0.0.0/8");
     }
 }
