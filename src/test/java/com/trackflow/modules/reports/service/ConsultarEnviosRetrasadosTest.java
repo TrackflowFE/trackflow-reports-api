@@ -9,6 +9,7 @@ import com.trackflow.modules.reports.application.EnviosEnRedRepository;
 import com.trackflow.modules.reports.application.EnviosRetrasados;
 import com.trackflow.modules.reports.domain.ReglaDeRetraso;
 import com.trackflow.modules.reports.domain.ShipmentTrackingView;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -37,7 +38,7 @@ class ConsultarEnviosRetrasadosTest {
     void evaluaLosEnviosEnRed() {
         // Arrange
         consulta = new ConsultarEnviosRetrasados(repository, ReglaDeRetraso.porDefecto(),
-                Clock.fixed(AHORA, ZoneOffset.UTC));
+                Clock.fixed(AHORA, ZoneOffset.UTC), new SimpleMeterRegistry());
         var view = new ShipmentTrackingView("TF-100", "IN_TRANSIT",
                 new ShipmentTrackingView.Origen("Ana", 1L, "Medellín"),
                 new ShipmentTrackingView.Destino("Luis", "Calle 1", 2L, "Bogotá"),

@@ -11,6 +11,7 @@ import com.trackflow.modules.reports.application.ShipmentTransitViewRepository;
 import com.trackflow.modules.reports.application.ShipmentTransitViewRepository.Medicion;
 import com.trackflow.modules.reports.application.TiemposDeTransito;
 import com.trackflow.modules.reports.application.TramoDeTransito;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -39,7 +40,7 @@ class ConsultarTiemposDeTransitoTest {
     @DisplayName("devuelve un reporte vacío sin calcular promedios si no hay entregas")
     void devuelveUnReporteVacioSinEntregas() {
         // Arrange
-        consulta = new ConsultarTiemposDeTransito(repository, Clock.fixed(AHORA, ZoneOffset.UTC), LIMITES);
+        consulta = new ConsultarTiemposDeTransito(repository, Clock.fixed(AHORA, ZoneOffset.UTC), LIMITES, new SimpleMeterRegistry());
         when(repository.contarEntregadosEntre(INICIO, AHORA)).thenReturn(0L);
 
         // Act
@@ -58,7 +59,7 @@ class ConsultarTiemposDeTransitoTest {
     @DisplayName("mapea las mediciones totales y por tramo")
     void devuelveLosPromediosDeLosTramos() {
         // Arrange
-        consulta = new ConsultarTiemposDeTransito(repository, Clock.fixed(AHORA, ZoneOffset.UTC), LIMITES);
+        consulta = new ConsultarTiemposDeTransito(repository, Clock.fixed(AHORA, ZoneOffset.UTC), LIMITES, new SimpleMeterRegistry());
         when(repository.contarEntregadosEntre(INICIO, AHORA)).thenReturn(2L);
         when(repository.medirEntregadosEntre(INICIO, AHORA)).thenReturn(Map.of(
                 ShipmentTransitViewRepository.TOTAL, new Medicion(Duration.ofHours(48), 2),

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.trackflow.modules.reports.application.ShipmentTransitViewRepository.Medicion;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -19,7 +20,7 @@ class ConsultarTiemposDeTransitoTest {
     private static final LimitesDePeriodo LIMITES = new LimitesDePeriodo(LocalDate.of(2026, 1, 1), 366);
     private final ShipmentTransitViewRepository repository = mock(ShipmentTransitViewRepository.class);
     private final ConsultarTiemposDeTransito query = new ConsultarTiemposDeTransito(repository,
-            Clock.fixed(Instant.parse("2026-10-10T17:00:00Z"), ZoneOffset.UTC), LIMITES);
+            Clock.fixed(Instant.parse("2026-10-10T17:00:00Z"), ZoneOffset.UTC), LIMITES, new SimpleMeterRegistry());
     private final LocalDate day = LocalDate.of(2026, 10, 2);
 
     @ParameterizedTest

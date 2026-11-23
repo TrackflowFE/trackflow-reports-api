@@ -12,6 +12,7 @@ import com.trackflow.modules.reports.application.ShipmentVolumeViewRepository;
 import com.trackflow.modules.reports.application.VolumenDeEnvios;
 import com.trackflow.modules.reports.application.VolumenPorPunto;
 import com.trackflow.modules.reports.domain.PeriodoInvalidoException;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -32,6 +33,8 @@ class ConsultarVolumenDeEnviosTest {
     @Mock
     private ShipmentVolumeViewRepository repository;
 
+    private final SimpleMeterRegistry metricas = new SimpleMeterRegistry();
+
     private ConsultarVolumenDeEnvios consulta;
 
     @Test
@@ -39,7 +42,7 @@ class ConsultarVolumenDeEnviosTest {
     void devuelveElVolumenOrdenadoDelPeriodo() {
         // Arrange
         var clock = Clock.fixed(AHORA, ZoneOffset.UTC);
-        consulta = new ConsultarVolumenDeEnvios(repository, clock, LIMITES);
+        consulta = new ConsultarVolumenDeEnvios(repository, clock, LIMITES, metricas);
         var desde = LocalDate.of(2026, 10, 10);
         var hasta = desde;
         var inicio = Instant.parse("2026-10-10T05:00:00Z");
@@ -63,6 +66,8 @@ class ConsultarVolumenDeEnviosTest {
         verify(repository).registradosPorPuntoDeIngreso(inicio, AHORA);
         verify(repository).registradosPendientesDeRecepcion(inicio, AHORA);
         verify(repository).entregadosEntre(inicio, AHORA);
+        assertThat(metricas.counter("trackflow_reportes_consultados_total", "tipo", "volumen").count())
+                .isEqualTo(1.0);
     }
 
     @Test
@@ -70,12 +75,14 @@ class ConsultarVolumenDeEnviosTest {
     void rechazaUnPeriodoInvertido() {
         // Arrange
         var clock = Clock.fixed(AHORA, ZoneOffset.UTC);
-        consulta = new ConsultarVolumenDeEnvios(repository, clock, LIMITES);
+        consulta = new ConsultarVolumenDeEnvios(repository, clock, LIMITES, metricas);
 
         // Act / Assert
         assertThatThrownBy(() -> consulta.ejecutar(
                 LocalDate.of(2026, 10, 10), LocalDate.of(2026, 10, 9)))
                 .isInstanceOf(PeriodoInvalidoException.class);
         verifyNoInteractions(repository);
+        // Un periodo rechazado no cuenta como reporte consultado.
+        assertThat(metricas.find("trackflow_reportes_consultados_total").counter()).isNull();
     }
 }
