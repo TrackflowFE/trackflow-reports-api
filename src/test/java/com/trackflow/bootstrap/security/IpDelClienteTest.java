@@ -11,7 +11,6 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
@@ -97,8 +96,7 @@ class IpDelClienteTest {
     @Test
     void elRangoSeComparaPorContenidoYNoPorReferencia() throws Exception {
         // Rango es privado: se construye por reflexion con su fabrica Rango.de(...).
-        Class<?> tipo = Arrays.stream(IpDelCliente.class.getDeclaredClasses())
-                .filter(c -> c.getSimpleName().equals("Rango")).findFirst().orElseThrow();
+        Class<?> tipo = Class.forName(IpDelCliente.class.getName() + "$Rango");
         Method de = tipo.getDeclaredMethod("de", String.class);
         de.setAccessible(true);
         Object a = de.invoke(null, "10.0.0.0/8");
