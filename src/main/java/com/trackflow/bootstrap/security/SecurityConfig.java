@@ -9,6 +9,7 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
@@ -21,6 +22,20 @@ public class SecurityConfig {
         http.cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // El rastreo público lleva el número de seguimiento en la URL, y ese número
+                // es la credencial del cliente: estas cabeceras acotan hasta dónde llega.
+                .headers(h -> h
+                        // Sin esto, al pulsar un enlace externo el navegador mandaría la URL
+                        // completa —número incluido— al sitio de destino en el Referer.
+                        .referrerPolicy(r -> r.policy(ReferrerPolicy.NO_REFERRER))
+                        // El navegador recuerda un año que este dominio es solo HTTPS, así que
+                        // una petición escrita como http:// no llega a salir en claro.
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000))
+                        .cacheControl(Customizer.withDefaults())
+                        .contentTypeOptions(Customizer.withDefaults())
+                        .frameOptions(f -> f.sameOrigin()))
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
                     // Las métricas de Prometheus solo salen por el puerto de gestión, que
